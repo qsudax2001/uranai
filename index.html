@@ -2,34 +2,164 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>四字熟語占い</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background-color: #fce4ec; padding: 20px; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 400px; margin: auto; border: 2px solid #f06292; }
-        h1 { color: #880e4f; font-size: 1.5rem; }
-        #result { font-size: 2.2rem; font-weight: bold; color: #d81b60; margin: 30px 0; min-height: 3rem; }
-        button { background: #f06292; color: white; border: none; padding: 12px 25px; border-radius: 25px; font-size: 1.1rem; cursor: pointer; transition: 0.3s; }
-        button:hover { background: #d81b60; }
+        /* --- [1. CSS: デザインとアニメーション] --- */
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; position: fixed;
+            background: #1a1a1a; color: #edc9af;
+            font-family: "Hiragino Mincho ProN", serif;
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+            padding-top: 4vh;
+            transition: background 0.3s;
+        }
+        #main-trigger { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        h1 { font-size: 1.8rem; margin: 0 0 5px 0; letter-spacing: 0.3rem; text-shadow: 0 0 10px rgba(237, 201, 175, 0.5); pointer-events: none; z-index: 5; }
+        .target-hint { font-size: 0.8rem; height: 3.2rem; margin-bottom: 15px; color: #fff; z-index: 5; text-align: center; font-weight: bold; pointer-events: none; line-height: 1.6; }
+        .slot-container { display: flex; justify-content: center; gap: 8px; width: 92%; z-index: 10; margin-bottom: 15px; }
+        .reel { flex: 1; height: 16vh; background: #fff; border: 3px solid #edc9af; border-radius: 10px; font-size: 10vw; color: #333; display: flex; align-items: center; justify-content: center; position: relative; transition: all 0.2s; }
+        .reel.stopped { border-color: #fff; box-shadow: 0 0 10px #edc9af; }
+        @keyframes celebrate { 0% { background: #1a1a1a; } 50% { background: #4a3c2c; } 100% { background: #1a1a1a; } }
+        body.win-bg { animation: celebrate 0.4s 3; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .reel.winner { animation: bounce 0.4s 5; border-color: gold; box-shadow: 0 0 20px gold; }
+        .reel.reach { animation: flash 0.5s infinite; border-width: 4px; z-index: 20; cursor: pointer; }
+        @keyframes flash { 0% { border-color: #ff4d4d; } 50% { border-color: #fff; } 100% { border-color: #ff4d4d; } }
+        #result { font-size: 1.3rem; min-height: 2.5rem; text-align: center; z-index: 5; font-weight: bold; pointer-events: none; color: gold; margin-bottom: 10px; }
+        #fortune-box { width: 85%; padding: 20px; border-radius: 5px; background: rgba(237, 201, 175, 0.1); border: 2px solid #edc9af; min-height: 100px; z-index: 5; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.8s cubic-bezier(0.2, 1, 0.3, 1); opacity: 0; transform: translateY(30px) scale(0.9); }
+        #fortune-box.show { opacity: 1; transform: translateY(0) scale(1); }
+        .fortune-title { font-size: 0.8rem; color: #edc9af; margin-bottom: 10px; letter-spacing: 0.1rem; }
+        .fortune-text { font-size: 1rem; color: #fff; line-height: 1.6; text-align: center; white-space: pre-wrap; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>🔮 今日の四字熟語占い</h1>
-        <p>あなたの今日の運勢を四字熟語で表すと...</p>
-        <div id="result">？？？？</div>
-        <button onclick="fortune()">運勢を占う！</button>
+
+    <div id="main-trigger" onclick="spin()"></div>
+    <h1>四字熟語占い</h1>
+    <div id="target-display" class="target-hint">画面を叩いて<br>今日の運勢を占う</div>
+    <div class="slot-container">
+        <div id="reel1" class="reel" onclick="respin(0, event)">?</div>
+        <div id="reel2" class="reel" onclick="respin(1, event)">?</div>
+        <div id="reel3" class="reel" onclick="respin(2, event)">?</div>
+        <div id="reel4" class="reel" onclick="respin(3, event)">?</div>
+    </div>
+    <div id="result"></div>
+    <div id="fortune-box">
+        <div class="fortune-title">― 貴方への御言葉 ―</div>
+        <div id="fortune-text" class="fortune-text"></div>
     </div>
 
     <script>
-        function fortune() {
-            const list = [
-                "一石二鳥", "笑門来福", "猪突猛進", "一生懸命", 
-                "一期一会", "勇気凛々", "意気揚々", "天真爛漫",
-                "日進月歩", "気分爽快", "満願成就", "千客万来"
+        /* --- [3. JS: 魂・動きのルール] --- */
+        const allIdioms = ["一期一会","弱肉強食","切磋琢磨","以心伝心","温故知新","呉越同舟","諸行無常","不言実行","森羅万象","大願成就","心願成就","七転八起","百花繚乱","意気揚揚","単刀直入","自問自答","油断大敵","因果応報","一石二鳥","完全無欠","危機一髪","喜怒哀楽","疑心暗鬼","起死回生","九死一生","急転直下","興味津々","空前絶後","厚顔無恥","公明正大","五里霧中","言語道断","孤立無援","五分五分","古今東西","自画自賛","四面楚歌","縦横無尽","終始一貫","十人十色","心機一転","神出鬼没","信賞必罰","針小棒大","正々堂々","清廉潔白","絶体絶命","千客万来","前代未聞","千変万化","他力本願","朝三暮四","適材適所","徹頭徹尾","天真爛漫","天下無双","天衣無縫","東奔西走","独立独歩","難攻不落","南船北馬","二者択一","日進月歩","馬耳東風","八方美人","波瀾万丈","半信半疑","美辞麗句","風林火山","不即不離","不眠不休","付和雷同","粉骨砕身","傍若無人","暴飲暴食","本末転倒","無我夢中","無味乾燥","明鏡止水","明朗快活","門外不出","唯我独尊","勇猛果敢","悠々自適","有名無実","有為転変","余人交替","竜頭蛇尾","臨機応変","和気藹藹","和魂洋才","我田引水","悪戦苦闘","暗中模索"];
+        const fortuneMessages = {
+            "一期一会": "今日出会う人、手にするモノを大切に。\n一生モノの縁になる予感です。",
+            "弱肉強食": "今日は遠慮は禁物。自分の強さを信じ、\n欲に従って進めば勝機あり。",
+            "切磋琢磨": "良きライバルがあなたを輝かせます。\n互いに高め合う姿勢が幸運の鍵。",
+            "以心伝心": "言葉を超えた絆を感じる日。\n大切な人と同じ景色を見られるでしょう。",
+            "七転八起": "躓いても、それは跳躍の助走です。\n立ち上がるたびに運気は増していきます。",
+            "大願成就": "長年の願いが形になる時。\n真っ直ぐな心が奇跡を引き寄せます。",
+            "明鏡止水": "心穏やかに過ごせば、真実が見えます。\n落ち着いた判断が大きな実を結ぶ日。",
+            "default": "この言葉を胸に刻んでください。\n今のあなたに必要な智慧がここにあります。"
+        };
+
+        let isSpinning = false;
+        let canRespin = false;
+        let timers = [null, null, null, null];
+        let reelCandidates = [];
+        let targets = [];
+
+        function spin() {
+            if (isSpinning || canRespin) return;
+            isSpinning = true;
+            canRespin = false; 
+            document.body.classList.remove('win-bg');
+            document.getElementById('result').innerText = "";
+            document.getElementById('fortune-box').classList.remove('show');
+            targets = [...allIdioms].sort(() => 0.5 - Math.random()).slice(0, 3);
+            document.getElementById('target-display').innerHTML = "【天の啓示】<br>" + targets.join("・");
+            reelCandidates = [
+                [targets[0][0], targets[1][0], targets[2][0]],
+                [targets[0][1], targets[1][1], targets[2][1]],
+                [targets[0][2], targets[1][2], targets[2][2]],
+                [targets[0][3], targets[1][3], targets[2][3]]
             ];
-            const random = list[Math.floor(Math.random() * list.length)];
-            document.getElementById('result').innerText = random;
+            for(let i=1; i<=4; i++) {
+                const r = document.getElementById('reel' + i);
+                r.classList.remove('stopped', 'reach', 'winner');
+            }
+            for (let i = 0; i < 4; i++) {
+                timers[i] = setInterval(() => {
+                    document.getElementById('reel' + (i + 1)).innerText = reelCandidates[i][Math.floor(Math.random() * 3)];
+                }, 85);
+            }
+            for (let i = 0; i < 4; i++) {
+                setTimeout(() => {
+                    clearInterval(timers[i]);
+                    document.getElementById('reel' + (i + 1)).classList.add('stopped');
+                    if (i === 3) setTimeout(() => checkResult(true), 200);
+                }, 1000 + i * 600); 
+            }
+        }
+
+        function checkResult(isFirstTime) {
+            const res = [1,2,3,4].map(i => document.getElementById('reel' + i).innerText).join("");
+            const resElement = document.getElementById('result');
+            if (allIdioms.includes(res)) {
+                resElement.innerHTML = "【 " + res + " 】";
+                document.body.classList.add('win-bg');
+                for(let i=1; i<=4; i++) document.getElementById('reel' + i).classList.add('winner');
+                const msg = fortuneMessages[res] || fortuneMessages["default"];
+                document.getElementById('fortune-text').innerText = msg;
+                document.getElementById('fortune-box').classList.add('show');
+                if (navigator.vibrate) navigator.vibrate([100, 50, 400]);
+                isSpinning = false;
+                canRespin = false;
+            } else if (isFirstTime) {
+                let reachIndex = -1;
+                targets.forEach(t => {
+                    let matchCount = 0;
+                    let lastMiss = -1;
+                    for(let i=0; i<4; i++) {
+                        if(document.getElementById('reel'+(i+1)).innerText === t[i]) matchCount++;
+                        else lastMiss = i;
+                    }
+                    if(matchCount === 3) reachIndex = lastMiss;
+                });
+                if(reachIndex !== -1) {
+                    resElement.innerHTML = "惜しい！残る一リールに念を込めよ";
+                    document.getElementById('reel' + (reachIndex + 1)).classList.add('reach');
+                    canRespin = true;
+                    isSpinning = false;
+                } else {
+                    resElement.innerText = "静観の時...";
+                    isSpinning = false;
+                }
+            } else {
+                resElement.innerText = "次は良き結果を...";
+                isSpinning = false;
+                canRespin = false;
+            }
+        }
+
+        function respin(idx, event) {
+            const reelObj = document.getElementById('reel' + (idx + 1));
+            if (!canRespin || !reelObj.classList.contains('reach')) return;
+            event.stopPropagation();
+            canRespin = false;
+            isSpinning = true;
+            reelObj.classList.remove('reach');
+            document.getElementById('result').innerText = "運命の再始動...";
+            timers[idx] = setInterval(() => {
+                reelObj.innerText = reelCandidates[idx][Math.floor(Math.random() * 3)];
+            }, 85);
+            setTimeout(() => {
+                clearInterval(timers[idx]);
+                reelObj.classList.add('stopped');
+                setTimeout(() => checkResult(false), 200);
+            }, 1500);
         }
     </script>
 </body>
