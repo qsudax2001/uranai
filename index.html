@@ -5,25 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>四字熟語占い</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background-color: #f0f0f0; padding: 20px; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
-        h1 { color: #333; }
-        #result { font-size: 2rem; font-weight: bold; color: #d32f2f; margin: 20px 0; }
-        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-size: 1rem; cursor: pointer; }
-        button:hover { background: #0056b3; }
+        body { font-family: sans-serif; text-align: center; background-color: #fce4ec; padding: 20px; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 400px; margin: auto; border: 2px solid #f06292; }
+        h1 { color: #880e4f; font-size: 1.5rem; }
+        #result { font-size: 2.2rem; font-weight: bold; color: #d81b60; margin: 30px 0; min-height: 3rem; }
+        button { background: #f06292; color: white; border: none; padding: 12px 25px; border-radius: 25px; font-size: 1.1rem; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #d81b60; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h1>今日の四字熟語占い</h1>
-        <p>あなたの今日の運勢は...</p>
+        <h1>🔮 今日の四字熟語占い</h1>
+        <p>あなたの今日の運勢を四字熟語で表すと...</p>
         <div id="result">？？？？</div>
-        <button onclick="fortune()">占う！</button>
+        <button onclick="fortune()">運勢を占う！</button>
     </div>
 
     <script>
         function fortune() {
-            const list = ["一石二鳥", "笑門来福", "猪突猛進", "一生懸命", "一期一会", "勇気凛々", "意気揚々", "天真爛漫"];
+            const list = [
+                "一石二鳥", "笑門来福", "猪突猛進", "一生懸命", 
+                "一期一会", "勇気凛々", "意気揚々", "天真爛漫",
+                "日進月歩", "気分爽快", "満願成就", "千客万来"
+            ];
             const random = list[Math.floor(Math.random() * list.length)];
             document.getElementById('result').innerText = random;
         }
