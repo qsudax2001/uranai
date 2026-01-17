@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>四字熟語占い</title>
+    <title>四字熟語占い - Professional Edition</title>
     <style>
-        /* --- [1. CSS: デザインとアニメーション] --- */
+        /* CSSはほぼそのままですが、構造的に管理しやすいよう整理 */
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             overflow: hidden; position: fixed;
@@ -13,7 +13,6 @@
             font-family: "Hiragino Mincho ProN", serif;
             display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
             padding-top: 4vh;
-            transition: background 0.3s;
         }
         #main-trigger { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
         h1 { font-size: 1.8rem; margin: 0 0 5px 0; letter-spacing: 0.3rem; text-shadow: 0 0 10px rgba(237, 201, 175, 0.5); pointer-events: none; z-index: 5; }
@@ -36,14 +35,14 @@
 </head>
 <body>
 
-    <div id="main-trigger" onclick="spin()"></div>
+    <div id="main-trigger"></div>
     <h1>四字熟語占い</h1>
     <div id="target-display" class="target-hint">画面を叩いて<br>今日の運勢を占う</div>
     <div class="slot-container">
-        <div id="reel1" class="reel" onclick="respin(0, event)">?</div>
-        <div id="reel2" class="reel" onclick="respin(1, event)">?</div>
-        <div id="reel3" class="reel" onclick="respin(2, event)">?</div>
-        <div id="reel4" class="reel" onclick="respin(3, event)">?</div>
+        <div id="reel1" class="reel">?</div>
+        <div id="reel2" class="reel">?</div>
+        <div id="reel3" class="reel">?</div>
+        <div id="reel4" class="reel">?</div>
     </div>
     <div id="result"></div>
     <div id="fortune-box">
@@ -52,115 +51,189 @@
     </div>
 
     <script>
-        /* --- [3. JS: 魂・動きのルール] --- */
-        const allIdioms = ["一期一会","弱肉強食","切磋琢磨","以心伝心","温故知新","呉越同舟","諸行無常","不言実行","森羅万象","大願成就","心願成就","七転八起","百花繚乱","意気揚揚","単刀直入","自問自答","油断大敵","因果応報","一石二鳥","完全無欠","危機一髪","喜怒哀楽","疑心暗鬼","起死回生","九死一生","急転直下","興味津々","空前絶後","厚顔無恥","公明正大","五里霧中","言語道断","孤立無援","五分五分","古今東西","自画自賛","四面楚歌","縦横無尽","終始一貫","十人十色","心機一転","神出鬼没","信賞必罰","針小棒大","正々堂々","清廉潔白","絶体絶命","千客万来","前代未聞","千変万化","他力本願","朝三暮四","適材適所","徹頭徹尾","天真爛漫","天下無双","天衣無縫","東奔西走","独立独歩","難攻不落","南船北馬","二者択一","日進月歩","馬耳東風","八方美人","波瀾万丈","半信半疑","美辞麗句","風林火山","不即不離","不眠不休","付和雷同","粉骨砕身","傍若無人","暴飲暴食","本末転倒","無我夢中","無味乾燥","明鏡止水","明朗快活","門外不出","唯我独尊","勇猛果敢","悠々自適","有名無実","有為転変","余人交替","竜頭蛇尾","臨機応変","和気藹藹","和魂洋才","我田引水","悪戦苦闘","暗中模索"];
-        const fortuneMessages = {
-            "一期一会": "今日出会う人、手にするモノを大切に。\n一生モノの縁になる予感です。",
-            "弱肉強食": "今日は遠慮は禁物。自分の強さを信じ、\n欲に従って進めば勝機あり。",
-            "切磋琢磨": "良きライバルがあなたを輝かせます。\n互いに高め合う姿勢が幸運の鍵。",
-            "以心伝心": "言葉を超えた絆を感じる日。\n大切な人と同じ景色を見られるでしょう。",
-            "七転八起": "躓いても、それは跳躍の助走です。\n立ち上がるたびに運気は増していきます。",
-            "大願成就": "長年の願いが形になる時。\n真っ直ぐな心が奇跡を引き寄せます。",
-            "明鏡止水": "心穏やかに過ごせば、真実が見えます。\n落ち着いた判断が大きな実を結ぶ日。",
-            "default": "この言葉を胸に刻んでください。\n今のあなたに必要な智慧がここにあります。"
-        };
-
-        let isSpinning = false;
-        let canRespin = false;
-        let timers = [null, null, null, null];
-        let reelCandidates = [];
-        let targets = [];
-
-        function spin() {
-            if (isSpinning || canRespin) return;
-            isSpinning = true;
-            canRespin = false; 
-            document.body.classList.remove('win-bg');
-            document.getElementById('result').innerText = "";
-            document.getElementById('fortune-box').classList.remove('show');
-            targets = [...allIdioms].sort(() => 0.5 - Math.random()).slice(0, 3);
-            document.getElementById('target-display').innerHTML = "【天の啓示】<br>" + targets.join("・");
-            reelCandidates = [
-                [targets[0][0], targets[1][0], targets[2][0]],
-                [targets[0][1], targets[1][1], targets[2][1]],
-                [targets[0][2], targets[1][2], targets[2][2]],
-                [targets[0][3], targets[1][3], targets[2][3]]
-            ];
-            for(let i=1; i<=4; i++) {
-                const r = document.getElementById('reel' + i);
-                r.classList.remove('stopped', 'reach', 'winner');
+        /**
+         * 1. データベース管理クラス
+         * 将来的に1000語に増やしたり、API連携に切り替える際はここだけを弄れば良い
+         */
+        class IdiomDatabase {
+            constructor() {
+                this.allIdioms = ["一期一会","弱肉強食","切磋琢磨","以心伝心","温故知新","呉越同舟","諸行無常","不言実行","森羅万象","大願成就","心願成就","七転八起","百花繚乱","意気揚揚","単刀直入","自問自答","油断大敵","因果応報","一石二鳥","完全無欠","危機一髪","喜怒哀楽","疑心暗鬼","起死回生","九死一生","急転直下","興味津々","空前絶後","厚顔無恥","公明正大","五里霧中","言語道断","孤立無援","五分五分","古今東西","自画自賛","四面楚歌","縦横無尽","終始一貫","十人十色","心機一転","神出鬼没","信賞必罰","針小棒大","正々堂々","清廉潔白","絶体絶命","千客万来","前代未聞","千変万化","他力本願","朝三暮四","適材適所","徹頭徹尾","天真爛漫","天下無双","天衣無縫","東奔西走","独立独歩","難攻不落","南船北馬","二者択一","日進月歩","馬耳東風","八方美人","波瀾万丈","半信半疑","美辞麗句","風林火山","不即不離","不眠不休","付和雷同","粉骨砕身","傍若無人","暴飲暴食","本末転倒","無我夢中","無味乾燥","明鏡止水","明朗快活","門外不出","唯我独尊","勇猛果敢","悠々自適","有名無実","有為転変","余人交替","竜頭蛇尾","臨機応変","和気藹藹","和魂洋才","我田引水","悪戦苦闘","暗中模索"];
+                this.messages = {
+                    "一期一会": "今日出会う人、手にするモノを大切に。\n一生モノの縁になる予感です。",
+                    "弱肉強食": "今日は遠慮は禁物。自分の強さを信じ、\n欲に従って進めば勝機あり。",
+                    "切磋琢磨": "良きライバルがあなたを輝かせます。\n互いに高め合う姿勢が幸運の鍵。",
+                    "以心伝心": "言葉を超えた絆を感じる日。\n大切な人と同じ景色を見られるでしょう。",
+                    "七転八起": "躓いても、それは跳躍の助走です。\n立ち上がるたびに運気は増していきます。",
+                    "大願成就": "長年の願いが形になる時。\n真っ直ぐな心が奇跡を引き寄せます。",
+                    "明鏡止水": "心穏やかに過ごせば、真実が見えます。\n落ち着いた判断が大きな実を結ぶ日。",
+                    "default": "この言葉を胸に刻んでください。\n今のあなたに必要な智慧がここにあります。"
+                };
             }
-            for (let i = 0; i < 4; i++) {
-                timers[i] = setInterval(() => {
-                    document.getElementById('reel' + (i + 1)).innerText = reelCandidates[i][Math.floor(Math.random() * 3)];
-                }, 85);
-            }
-            for (let i = 0; i < 4; i++) {
-                setTimeout(() => {
-                    clearInterval(timers[i]);
-                    document.getElementById('reel' + (i + 1)).classList.add('stopped');
-                    if (i === 3) setTimeout(() => checkResult(true), 200);
-                }, 1000 + i * 600); 
+            isValid(idiom) { return this.allIdioms.includes(idiom); }
+            getMessage(idiom) { return this.messages[idiom] || this.messages["default"]; }
+            getRandomTargets(count = 3) {
+                return [...this.allIdioms].sort(() => 0.5 - Math.random()).slice(0, count);
             }
         }
 
-        function checkResult(isFirstTime) {
-            const res = [1,2,3,4].map(i => document.getElementById('reel' + i).innerText).join("");
-            const resElement = document.getElementById('result');
-            if (allIdioms.includes(res)) {
-                resElement.innerHTML = "【 " + res + " 】";
-                document.body.classList.add('win-bg');
-                for(let i=1; i<=4; i++) document.getElementById('reel' + i).classList.add('winner');
-                const msg = fortuneMessages[res] || fortuneMessages["default"];
-                document.getElementById('fortune-text').innerText = msg;
-                document.getElementById('fortune-box').classList.add('show');
-                if (navigator.vibrate) navigator.vibrate([100, 50, 400]);
-                isSpinning = false;
-                canRespin = false;
-            } else if (isFirstTime) {
+        /**
+         * 2. 占いエンジンクラス
+         * ゲームのルール、判定、状態管理を担当
+         */
+        class FortuneGame {
+            constructor(db) {
+                this.db = db;
+                this.isSpinning = false;
+                this.canRespin = false;
+                this.targets = [];
+                this.reelCandidates = [];
+                this.currentResult = ["?", "?", "?", "?"];
+            }
+
+            prepareNewGame() {
+                this.targets = this.db.getRandomTargets(3);
+                this.reelCandidates = [0,1,2,3].map(pos => this.targets.map(t => t[pos]));
+                this.isSpinning = true;
+                this.canRespin = false;
+            }
+
+            checkStatus(currentReels) {
+                const res = currentReels.join("");
+                if (this.db.isValid(res)) return { type: "WIN", idiom: res };
+
+                // リーチ判定ロジック
                 let reachIndex = -1;
-                targets.forEach(t => {
-                    let matchCount = 0;
-                    let lastMiss = -1;
-                    for(let i=0; i<4; i++) {
-                        if(document.getElementById('reel'+(i+1)).innerText === t[i]) matchCount++;
-                        else lastMiss = i;
+                for (let t of this.targets) {
+                    let matches = currentReels.filter((char, i) => char === t[i]).length;
+                    if (matches === 3) {
+                        reachIndex = currentReels.findIndex((char, i) => char !== t[i]);
+                        break;
                     }
-                    if(matchCount === 3) reachIndex = lastMiss;
-                });
-                if(reachIndex !== -1) {
-                    resElement.innerHTML = "惜しい！残る一リールに念を込めよ";
-                    document.getElementById('reel' + (reachIndex + 1)).classList.add('reach');
-                    canRespin = true;
-                    isSpinning = false;
-                } else {
-                    resElement.innerText = "静観の時...";
-                    isSpinning = false;
                 }
-            } else {
-                resElement.innerText = "次は良き結果を...";
-                isSpinning = false;
-                canRespin = false;
+                if (reachIndex !== -1) return { type: "REACH", index: reachIndex };
+                
+                return { type: "MISS" };
             }
         }
 
-        function respin(idx, event) {
-            const reelObj = document.getElementById('reel' + (idx + 1));
-            if (!canRespin || !reelObj.classList.contains('reach')) return;
-            event.stopPropagation();
-            canRespin = false;
-            isSpinning = true;
-            reelObj.classList.remove('reach');
-            document.getElementById('result').innerText = "運命の再始動...";
-            timers[idx] = setInterval(() => {
-                reelObj.innerText = reelCandidates[idx][Math.floor(Math.random() * 3)];
-            }, 85);
-            setTimeout(() => {
-                clearInterval(timers[idx]);
-                reelObj.classList.add('stopped');
-                setTimeout(() => checkResult(false), 200);
-            }, 1500);
+        /**
+         * 3. UI・演出管理クラス
+         * 画面表示、アニメーション、イベント待機を担当
+         */
+        class UIManager {
+            constructor(game) {
+                this.game = game;
+                this.reels = [1,2,3,4].map(i => document.getElementById(`reel${i}`));
+                this.resultEl = document.getElementById('result');
+                this.targetEl = document.getElementById('target-display');
+                this.boxEl = document.getElementById('fortune-box');
+                this.textEl = document.getElementById('fortune-text');
+                this.timers = [null, null, null, null];
+
+                this.initEvents();
+            }
+
+            initEvents() {
+                document.getElementById('main-trigger').onclick = () => this.handleMainAction();
+                this.reels.forEach((el, i) => {
+                    el.onclick = (e) => {
+                        e.stopPropagation();
+                        this.handleRespin(i);
+                    };
+                });
+            }
+
+            handleMainAction() {
+                if (this.game.isSpinning || this.game.canRespin) return;
+                this.startSequence();
+            }
+
+            startSequence() {
+                this.game.prepareNewGame();
+                this.resetUI();
+                
+                this.targetEl.innerHTML = "【天の啓示】<br>" + this.game.targets.join("・");
+
+                this.reels.forEach((el, i) => {
+                    this.timers[i] = setInterval(() => {
+                        const chars = this.game.reelCandidates[i];
+                        el.innerText = chars[Math.floor(Math.random() * chars.length)];
+                    }, 85);
+
+                    setTimeout(() => {
+                        clearInterval(this.timers[i]);
+                        el.classList.add('stopped');
+                        if (i === 3) setTimeout(() => this.processResult(true), 200);
+                    }, 1000 + i * 600);
+                });
+            }
+
+            handleRespin(idx) {
+                if (!this.game.canRespin || !this.reels[idx].classList.contains('reach')) return;
+                
+                this.game.canRespin = false;
+                this.game.isSpinning = true;
+                this.reels[idx].classList.remove('reach');
+                this.resultEl.innerText = "運命の再始動...";
+
+                this.timers[idx] = setInterval(() => {
+                    const chars = this.game.reelCandidates[idx];
+                    this.reels[idx].innerText = chars[Math.floor(Math.random() * chars.length)];
+                }, 85);
+
+                setTimeout(() => {
+                    clearInterval(this.timers[idx]);
+                    this.reels[idx].classList.add('stopped');
+                    setTimeout(() => this.processResult(false), 200);
+                }, 1500);
+            }
+
+            processResult(isFirstTime) {
+                const currentChars = this.reels.map(el => el.innerText);
+                const status = this.game.checkStatus(currentChars);
+
+                if (status.type === "WIN") {
+                    this.showWin(status.idiom);
+                } else if (isFirstTime && status.type === "REACH") {
+                    this.showReach(status.index);
+                } else {
+                    this.showMiss(isFirstTime);
+                }
+                this.game.isSpinning = false;
+            }
+
+            showWin(idiom) {
+                this.resultEl.innerHTML = `【 ${idiom} 】`;
+                document.body.classList.add('win-bg');
+                this.reels.forEach(el => el.classList.add('winner'));
+                this.textEl.innerText = this.game.db.getMessage(idiom);
+                this.boxEl.classList.add('show');
+                if (navigator.vibrate) navigator.vibrate([100, 50, 400]);
+            }
+
+            showReach(idx) {
+                this.resultEl.innerHTML = "惜しい！残る一リールに念を込めよ";
+                this.reels[idx].classList.add('reach');
+                this.game.canRespin = true;
+            }
+
+            showMiss(isFirstTime) {
+                this.resultEl.innerText = isFirstTime ? "静観の時..." : "次は良き結果を...";
+            }
+
+            resetUI() {
+                document.body.classList.remove('win-bg');
+                this.resultEl.innerText = "";
+                this.boxEl.classList.remove('show');
+                this.reels.forEach(el => el.classList.remove('stopped', 'reach', 'winner'));
+            }
         }
+
+        // --- 起動 ---
+        const db = new IdiomDatabase();
+        const game = new FortuneGame(db);
+        const ui = new UIManager(game);
+
     </script>
 </body>
 </html>
