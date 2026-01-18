@@ -18,7 +18,6 @@
         .target-hint { font-size: 0.8rem; height: 3.2rem; margin-bottom: 15px; color: #fff; z-index: 5; text-align: center; font-weight: bold; pointer-events: none; line-height: 1.6; }
         .slot-container { display: flex; justify-content: center; gap: 8px; width: 92%; z-index: 10; margin-bottom: 15px; perspective: 1000px; }
         
-        /* リールの基本スタイル（文字を大きく、はっきりと） */
         .reel { 
             flex: 1; height: 16vh; background: #fff; 
             border: 3px solid #edc9af; border-radius: 10px; 
@@ -28,16 +27,16 @@
             backface-visibility: hidden;
         }
 
-        /* くるりくるりと回るアニメーション */
+        /* 改良版：明度差を抑えた滑らかな回転 */
         @keyframes roll {
             0% { transform: rotateX(0deg); opacity: 1; }
-            25% { transform: rotateX(-90deg); opacity: 0.5; }
-            50% { transform: rotateX(-180deg); opacity: 0.2; }
-            51% { transform: rotateX(180deg); opacity: 0.2; }
-            75% { transform: rotateX(90deg); opacity: 0.5; }
-            100% { transform: rotateX(0deg); opacity: 1; }
+            50% { transform: rotateX(-180deg); opacity: 0.7; } /* 透明度を下げすぎない */
+            100% { transform: rotateX(-360deg); opacity: 1; }
         }
-        .reel.spinning { animation: roll 0.15s infinite linear; color: #888; }
+        .reel.spinning { 
+            animation: roll 0.25s infinite linear; /* 少しゆっくりに */
+            color: #555; /* 文字色も暗すぎず明るすぎず */
+        }
 
         .reel.stopped { border-color: #fff; box-shadow: 0 0 15px #edc9af; transform: rotateX(0deg); }
         
@@ -56,7 +55,6 @@
     </style>
 </head>
 <body>
-
     <div id="main-trigger"></div>
     <h1>四字熟語占い</h1>
     <div id="target-display" class="target-hint">画面を叩いて<br>今日の運勢を占う</div>
@@ -71,7 +69,6 @@
         <div class="fortune-title">― 貴方への御言葉 ―</div>
         <div id="fortune-text" class="fortune-text"></div>
     </div>
-
     <script>
         class IdiomDatabase {
             constructor() {
@@ -93,7 +90,6 @@
                 return [...this.allIdioms].sort(() => 0.5 - Math.random()).slice(0, count);
             }
         }
-
         class FortuneGame {
             constructor(db) {
                 this.db = db;
@@ -122,7 +118,6 @@
                 return reachIndex !== -1 ? { type: "REACH", index: reachIndex } : { type: "MISS" };
             }
         }
-
         class UIManager {
             constructor(game) {
                 this.game = game;
@@ -134,40 +129,34 @@
                 this.timers = [null, null, null, null];
                 this.initEvents();
             }
-
             initEvents() {
                 document.getElementById('main-trigger').onclick = () => this.handleMainAction();
                 this.reels.forEach((el, i) => {
                     el.onclick = (e) => { e.stopPropagation(); this.handleRespin(i); };
                 });
             }
-
             handleMainAction() {
                 if (this.game.isSpinning || this.game.canRespin) return;
                 this.startSequence();
             }
-
             startSequence() {
                 this.game.prepareNewGame();
                 this.resetUI();
                 this.targetEl.innerHTML = "【天の啓示】<br>" + this.game.targets.join("・");
-
                 this.reels.forEach((el, i) => {
-                    el.classList.add('spinning'); // 回転開始
+                    el.classList.add('spinning');
                     this.timers[i] = setInterval(() => {
                         const chars = this.game.reelCandidates[i];
                         el.innerText = chars[Math.floor(Math.random() * chars.length)];
                     }, 85);
-
                     setTimeout(() => {
                         clearInterval(this.timers[i]);
-                        el.classList.remove('spinning'); // 回転停止
+                        el.classList.remove('spinning');
                         el.classList.add('stopped');
                         if (i === 3) setTimeout(() => this.processResult(true), 200);
                     }, 1000 + i * 600);
                 });
             }
-
             handleRespin(idx) {
                 if (!this.game.canRespin || !this.reels[idx].classList.contains('reach')) return;
                 this.game.canRespin = false;
@@ -175,12 +164,10 @@
                 this.reels[idx].classList.remove('reach', 'stopped');
                 this.reels[idx].classList.add('spinning');
                 this.resultEl.innerText = "運命の再始動...";
-
                 this.timers[idx] = setInterval(() => {
                     const chars = this.game.reelCandidates[idx];
                     this.reels[idx].innerText = chars[Math.floor(Math.random() * chars.length)];
                 }, 85);
-
                 setTimeout(() => {
                     clearInterval(this.timers[idx]);
                     this.reels[idx].classList.remove('spinning');
@@ -188,7 +175,6 @@
                     setTimeout(() => this.processResult(false), 200);
                 }, 1500);
             }
-
             processResult(isFirstTime) {
                 const currentChars = this.reels.map(el => el.innerText);
                 const status = this.game.checkStatus(currentChars);
@@ -197,7 +183,6 @@
                 else this.showMiss(isFirstTime);
                 this.game.isSpinning = false;
             }
-
             showWin(idiom) {
                 this.resultEl.innerHTML = `【 ${idiom} 】`;
                 document.body.classList.add('win-bg');
@@ -206,17 +191,14 @@
                 this.boxEl.classList.add('show');
                 if (navigator.vibrate) navigator.vibrate([100, 50, 400]);
             }
-
             showReach(idx) {
                 this.resultEl.innerHTML = "惜しい！残る一リールに念を込めよ";
                 this.reels[idx].classList.add('reach');
                 this.game.canRespin = true;
             }
-
             showMiss(isFirstTime) {
                 this.resultEl.innerText = isFirstTime ? "静観の時..." : "次は良き結果を...";
             }
-
             resetUI() {
                 document.body.classList.remove('win-bg');
                 this.resultEl.innerText = "";
@@ -224,7 +206,6 @@
                 this.reels.forEach(el => el.classList.remove('stopped', 'reach', 'winner', 'spinning'));
             }
         }
-
         const db = new IdiomDatabase();
         const game = new FortuneGame(db);
         const ui = new UIManager(game);
